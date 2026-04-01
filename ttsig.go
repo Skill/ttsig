@@ -49,11 +49,11 @@ func SignRequest(signParams SignConfig) (SignedHeaders, error) {
 	if signParams.RawRequestParameters == "" {
 		return nil, errors.New("RawParams must not be empty")
 	}
-	if signParams.RequestPayload == "" {
-		return nil, errors.New("Payload must not be empty")
-	}
 
-	xssStub := md5Upper(signParams.RequestPayload)
+	var xssStub string
+	if signParams.RequestPayload != "" {
+		xssStub = md5Upper(signParams.RequestPayload)
+	}
 
 	gorgonSigner := &signer.Gorgon{
 		Unix:    unixSeconds,
@@ -75,7 +75,7 @@ func SignRequest(signParams SignConfig) (SignedHeaders, error) {
 	}
 
 	xArgus, err := signer.GetSign(
-		signParams.RawRequestParameters, // IMPORTANT: raw string
+		signParams.RawRequestParameters,
 		xssStub,
 		unixSeconds,
 		signParams.AppID,
@@ -96,10 +96,13 @@ func SignRequest(signParams SignConfig) (SignedHeaders, error) {
 	}
 	out["x-khronos"] = strconv.FormatInt(unixSeconds, 10)
 	out["x-ss-req-ticket"] = strconv.FormatInt(unixMilliseconds, 10)
-	out["content-length"] = strconv.Itoa(len(signParams.RequestPayload))
-	out["x-ss-stub"] = xssStub
 	out["x-ladon"] = xLadon
 	out["x-argus"] = xArgus
+
+	if signParams.RequestPayload != "" {
+		out["content-length"] = strconv.Itoa(len(signParams.RequestPayload))
+		out["x-ss-stub"] = xssStub
+	}
 
 	return out, nil
 }
